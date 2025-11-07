@@ -26,11 +26,11 @@ dataset_conf:
     # 最长的音频长度
     max_duration: 20
   # 训练数据的数据列表路径
-  train_list: 'dataset/train_list.txt'
+  train_list: "dataset/train_list_features.txt"
   # 评估注册的数据列表路径
-  enroll_list: 'dataset/cn-celeb-test/enroll_list.txt'
+  enroll_list: "dataset/cn-celeb-test/enroll_list_features.txt"
   # 评估检验的数据列表路径
-  trials_list: 'dataset/cn-celeb-test/trials_list.txt'
+  trials_list: "dataset/cn-celeb-test/trials_list_features.txt"
   # 是否使用PKSampler，该Sampler可以保证每个说话人都有sample_per_id个样本
   is_use_pksampler: False
   # 使用PKSampler时设置样本数量
@@ -43,7 +43,7 @@ preprocess_conf:
   # 音频预处理方法，也可以叫特征提取方法
   # 当use_hf_model为False时，支持：MelSpectrogram、Spectrogram、MFCC、Fbank
   # 当use_hf_model为True时，指定的是HuggingFace的模型或者本地路径，比如facebook/w2v-bert-2.0或者./feature_models/w2v-bert-2.0
-  feature_method: 'Fbank'
+  feature_method: "Fbank"
   # 当use_hf_model为False时，设置API参数，更参数查看对应API，不清楚的可以直接删除该部分，直接使用默认值。
   # 当use_hf_model为True时，可以设置参数use_gpu，指定是否使用GPU提取特征
   method_args:
@@ -52,24 +52,24 @@ preprocess_conf:
 
 model_conf:
   # 所使用的模型
-  model: 'EcapaTdnn'
+  model: "EcapaTdnn"
   # 模型参数
   model_args:
     embd_dim: 192
     # 所使用的池化层，支持ASP、SAP、TSP、TAP
-    pooling_type: 'ASP'
+    pooling_type: "ASP"
     channels: [512, 512, 512, 512, 1536]
   # 分类器参数
   classifier:
     # 分类器类型，支持Cosine、Linear
-    classifier_type: 'Cosine'
+    classifier_type: "Cosine"
     # 说话人数量，即分类大小
     num_speakers: 2796
     num_blocks: 0
 
 loss_conf:
   # 所使用的损失函数，支持AAMLoss、SphereFace2、AMLoss、ARMLoss、CELoss、SubCenterLoss、TripletAngularMarginLoss
-  loss: 'AAMLoss'
+  loss: "AAMLoss"
   # 损失函数参数
   loss_args:
     margin: 0.2
@@ -85,13 +85,13 @@ loss_conf:
 
 optimizer_conf:
   # 优化方法
-  optimizer: 'Adam'
+  optimizer: "Adam"
   # 优化方法参数
   optimizer_args:
     lr: 0.001
     weight_decay: !!float 1e-5
   # 学习率衰减函数，支持Pytorch支持的和项目提供的WarmupCosineSchedulerLR
-  scheduler: 'WarmupCosineSchedulerLR'
+  scheduler: "WarmupCosineSchedulerLR"
   # 学习率衰减函数参数
   scheduler_args:
     min_lr: !!float 1e-5

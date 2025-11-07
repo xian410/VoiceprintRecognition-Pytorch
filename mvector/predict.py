@@ -20,12 +20,14 @@ from mvector.utils.utils import dict_to_object, print_arguments
 
 
 class MVectorPredictor:
-    def __init__(self,
-                 configs,
-                 threshold=0.6,
-                 audio_db_path=None,
-                 model_path='models/CAMPPlus_Fbank/best_model/',
-                 use_gpu=True):
+    def __init__(
+        self,
+        configs,
+        threshold=0.6,
+        audio_db_path=None,
+        model_path="models/CAMPPlus_Fbank/best_model/",
+        use_gpu=True,
+    ):
         """
         声纹识别预测工具
         :param configs: 配置参数
@@ -35,28 +37,32 @@ class MVectorPredictor:
         :param use_gpu: 是否使用GPU预测
         """
         if use_gpu:
-            assert (torch.cuda.is_available()), 'GPU不可用'
+            assert torch.cuda.is_available(), "GPU不可用"
             self.device = torch.device("cuda")
         else:
-            os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+            os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
             self.device = torch.device("cpu")
         self.threshold = threshold
         # 读取配置文件
         if isinstance(configs, str):
-            with open(configs, 'r', encoding='utf-8') as f:
+            with open(configs, "r", encoding="utf-8") as f:
                 configs = yaml.load(f.read(), Loader=yaml.FullLoader)
             print_arguments(configs=configs)
         self.configs = dict_to_object(configs)
-        self._audio_featurizer = AudioFeaturizer(feature_method=self.configs.preprocess_conf.feature_method,
-                                                 use_hf_model=self.configs.preprocess_conf.get('use_hf_model', False),
-                                                 method_args=self.configs.preprocess_conf.get('method_args', {}))
+        self._audio_featurizer = AudioFeaturizer(
+            feature_method=self.configs.preprocess_conf.feature_method,
+            use_hf_model=self.configs.preprocess_conf.get("use_hf_model", False),
+            method_args=self.configs.preprocess_conf.get("method_args", {}),
+        )
         # 获取模型
-        backbone = build_model(input_size=self._audio_featurizer.feature_dim, configs=self.configs)
+        backbone = build_model(
+            input_size=self._audio_featurizer.feature_dim, configs=self.configs
+        )
         self.predictor = nn.Sequential(backbone)
         self.predictor.to(self.device)
         # 加载模型
         if os.path.isdir(model_path):
-            model_path = os.path.join(model_path, 'model.pth')
+            model_path = os.path.join(model_path, "model.pth")
         assert os.path.exists(model_path), f"{model_path} 模型不存在！"
         self.predictor = load_pretrained(self.predictor, model_path, use_gpu=use_gpu)
         logger.info(f"成功加载模型参数：{model_path}")
@@ -84,12 +90,15 @@ class MVectorPredictor:
     # 加载声纹特征索引
     def __load_audio_indexes(self):
         # 如果存在声纹特征索引文件就加载
-        if not os.path.exists(self.audio_indexes_path): return
+        if not os.path.exists(self.audio_indexes_path):
+            return
         with open(self.audio_indexes_path, "rb") as f:
             indexes = pickle.load(f)
-        for name, feature, path in zip(indexes["users_name"], indexes["faces_feature"],
-                                       indexes["users_image_path"]):
-            if not os.path.exists(path): continue
+        for name, feature, path in zip(
+            indexes["users_name"], indexes["faces_feature"], indexes["users_image_path"]
+        ):
+            if not os.path.exists(path):
+                continue
             self.users_name.append(name)
             self.users_audio_path.append(path)
             if self.audio_feature is None:
@@ -100,9 +109,14 @@ class MVectorPredictor:
     # 保存声纹特征索引
     def __write_index(self):
         with open(self.audio_indexes_path, "wb") as f:
-            pickle.dump({"users_name": self.users_name,
-                         "faces_feature": self.audio_feature,
-                         "users_image_path": self.users_audio_path}, f)
+            pickle.dump(
+                {
+                    "users_name": self.users_name,
+                    "faces_feature": self.audio_feature,
+                    "users_image_path": self.users_audio_path,
+                },
+                f,
+            )
 
     # 加载声纹库中的声纹
     def __load_audio_db(self, audio_db_path):
@@ -112,16 +126,19 @@ class MVectorPredictor:
         audios_path = []
         for name in os.listdir(audio_db_path):
             audio_dir = os.path.join(audio_db_path, name)
-            if not os.path.isdir(audio_dir): continue
+            if not os.path.isdir(audio_dir):
+                continue
             for file in os.listdir(audio_dir):
-                audios_path.append(os.path.join(audio_dir, file).replace('\\', '/'))
+                audios_path.append(os.path.join(audio_dir, file).replace("\\", "/"))
         # 声纹库没数据就跳过
-        if len(audios_path) == 0: return
-        logger.info('正在加载声纹库数据...')
+        if len(audios_path) == 0:
+            return
+        logger.info("正在加载声纹库数据...")
         input_audios = []
-        for audio_path in tqdm(audios_path, desc='加载声纹库数据'):
+        for audio_path in tqdm(audios_path, desc="加载声纹库数据"):
             # 如果声纹特征已经在索引就跳过
-            if audio_path in self.users_audio_path: continue
+            if audio_path in self.users_audio_path:
+                continue
             # 读取声纹库音频
             audio_segment = self._load_audio(audio_path)
             # 获取用户名
@@ -144,7 +161,11 @@ class MVectorPredictor:
                 self.audio_feature = features
             else:
                 self.audio_feature = np.vstack((self.audio_feature, features))
-        assert len(self.audio_feature) == len(self.users_name) == len(self.users_audio_path), '加载的数量对不上！'
+        assert (
+            len(self.audio_feature)
+            == len(self.users_name)
+            == len(self.users_audio_path)
+        ), "加载的数量对不上！"
         # 将声纹特征保存到索引文件中
         self.__write_index()
         # 计算平均特征，用于检索
@@ -158,7 +179,9 @@ class MVectorPredictor:
             self.users_name_mean.append(name)
         if len(self.audio_feature_mean.shape) == 1:
             self.audio_feature_mean = self.audio_feature_mean[np.newaxis, :]
-        logger.info(f'声纹库数据加载完成，一共有{len(self.audio_feature_mean)}个用户，分别是：{self.users_name_mean}')
+        logger.info(
+            f"声纹库数据加载完成，一共有{len(self.audio_feature_mean)}个用户，分别是：{self.users_name_mean}"
+        )
 
     # 特征进行归一化
     @staticmethod
@@ -200,20 +223,21 @@ class MVectorPredictor:
         elif isinstance(audio_data, AudioSegment):
             audio_segment = audio_data
         else:
-            raise Exception(f'不支持该数据类型，当前数据类型为：{type(audio_data)}')
-        assert audio_segment.duration >= self.configs.dataset_conf.dataset.min_duration, \
-            f'音频太短，最小应该为{self.configs.dataset_conf.dataset.min_duration}s，当前音频为{audio_segment.duration}s'
+            raise Exception(f"不支持该数据类型，当前数据类型为：{type(audio_data)}")
+        assert (
+            audio_segment.duration >= self.configs.dataset_conf.dataset.min_duration
+        ), f"音频太短，最小应该为{self.configs.dataset_conf.dataset.min_duration}s，当前音频为{audio_segment.duration}s"
         # 重采样
         if audio_segment.sample_rate != self.configs.dataset_conf.dataset.sample_rate:
             audio_segment.resample(self.configs.dataset_conf.dataset.sample_rate)
         # decibel normalization
         if self.configs.dataset_conf.dataset.use_dB_normalization:
-            audio_segment.normalize(target_db=self.configs.dataset_conf.dataset.target_dB)
+            audio_segment.normalize(
+                target_db=self.configs.dataset_conf.dataset.target_dB
+            )
         return audio_segment
 
-    def predict(self,
-                audio_data,
-                sample_rate=16000):
+    def predict(self, audio_data, sample_rate=16000):
         """预测一个音频的特征
 
         :param audio_data: 需要识别的数据，支持文件路径，文件对象，字节，numpy，AudioSegment对象。如果是字节的话，必须是完整并带格式的字节文件
@@ -238,7 +262,9 @@ class MVectorPredictor:
         audios_data1 = []
         for audio_data in audios_data:
             # 加载音频文件，并进行预处理
-            input_data = self._load_audio(audio_data=audio_data, sample_rate=sample_rate)
+            input_data = self._load_audio(
+                audio_data=audio_data, sample_rate=sample_rate
+            )
             audios_data1.append(input_data.samples)
         # 找出音频长度最长的
         batch = sorted(audios_data1, key=lambda a: a.shape[0], reverse=True)
@@ -259,7 +285,9 @@ class MVectorPredictor:
         # 执行预测
         features = []
         for i in range(0, input_size, batch_size):
-            feature = self.predictor(audio_feature[i:i + batch_size]).data.cpu().numpy()
+            feature = (
+                self.predictor(audio_feature[i : i + batch_size]).data.cpu().numpy()
+            )
             features.extend(feature)
         features = np.array(features)
         return features
@@ -275,13 +303,12 @@ class MVectorPredictor:
         feature1 = self.predict(audio_data1)
         feature2 = self.predict(audio_data2)
         # 对角余弦值
-        dist = np.dot(feature1, feature2) / (np.linalg.norm(feature1) * np.linalg.norm(feature2))
+        dist = np.dot(feature1, feature2) / (
+            np.linalg.norm(feature1) * np.linalg.norm(feature2)
+        )
         return dist
 
-    def register(self,
-                 audio_data,
-                 user_name: str,
-                 sample_rate=16000):
+    def register(self, audio_data, user_name: str, sample_rate=16000):
         """声纹注册
         :param audio_data: 需要识别的数据，支持文件路径，文件对象，字节，numpy。如果是字节的话，必须是完整的字节文件
         :param user_name: 注册用户的名字
@@ -297,19 +324,24 @@ class MVectorPredictor:
             self.audio_feature = np.vstack((self.audio_feature, feature))
         # 保存
         if not os.path.exists(os.path.join(self.audio_db_path, user_name)):
-            audio_path = os.path.join(self.audio_db_path, user_name, '0.wav')
+            audio_path = os.path.join(self.audio_db_path, user_name, "0.wav")
         else:
-            audio_path = os.path.join(self.audio_db_path, user_name,
-                                      f'{len(os.listdir(os.path.join(self.audio_db_path, user_name)))}.wav')
+            audio_path = os.path.join(
+                self.audio_db_path,
+                user_name,
+                f"{len(os.listdir(os.path.join(self.audio_db_path, user_name)))}.wav",
+            )
         os.makedirs(os.path.dirname(audio_path), exist_ok=True)
         audio_segment.to_wav_file(audio_path)
-        self.users_audio_path.append(audio_path.replace('\\', '/'))
+        self.users_audio_path.append(audio_path.replace("\\", "/"))
         self.users_name.append(user_name)
         self.__write_index()
         # 更新检索的特征
         if user_name in self.users_name_mean:
             index = self.users_name_mean.index(user_name)
-            indexes = [idx for idx, val in enumerate(self.users_name) if val == user_name]
+            indexes = [
+                idx for idx, val in enumerate(self.users_name) if val == user_name
+            ]
             feature = self.audio_feature[indexes].mean(axis=0)
             self.audio_feature_mean[index] = feature
         else:
@@ -347,7 +379,11 @@ class MVectorPredictor:
         :return:
         """
         if user_name in self.users_name and user_name in self.users_name_mean:
-            indexes = [i for i in range(len(self.users_name)) if self.users_name[i] == user_name]
+            indexes = [
+                i
+                for i in range(len(self.users_name))
+                if self.users_name[i] == user_name
+            ]
             for index in sorted(indexes, reverse=True):
                 del self.users_name[index]
                 del self.users_audio_path[index]
@@ -362,7 +398,9 @@ class MVectorPredictor:
         else:
             return False
 
-    def speaker_diarization(self, audio_data, sample_rate=16000, speaker_num=None, search_audio_db=False):
+    def speaker_diarization(
+        self, audio_data, sample_rate=16000, speaker_num=None, search_audio_db=False
+    ):
         """说话人日志识别
 
         Args:
@@ -377,20 +415,23 @@ class MVectorPredictor:
         segments = self.speaker_diarize.segments_audio(input_data)
         segments_data = [segment[2] for segment in segments]
         features = self.predict_batch(segments_data, sample_rate=sample_rate)
-        labels, spk_center_embeddings = self.speaker_diarize.clustering(features, speaker_num=speaker_num)
+        labels, spk_center_embeddings = self.speaker_diarize.clustering(
+            features, speaker_num=speaker_num
+        )
         outputs = self.speaker_diarize.postprocess(segments, labels)
         if search_audio_db:
-            assert self.audio_feature is not None, "数据库中没有音频数据，请先指定说话人特征数据库或者注册说话人"
+            assert (
+                self.audio_feature is not None
+            ), "数据库中没有音频数据，请先指定说话人特征数据库或者注册说话人"
             names = self.__retrieval(np_feature=spk_center_embeddings)
             results = []
             for output in outputs:
-                name = names[output['speaker']][0]
+                name = names[output["speaker"]][0]
                 result = {
-                    'speaker': name if name else f"陌生人{output['speaker']}",
-                    'start': output['start'],
-                    'end': output['end']
+                    "speaker": name if name else f"陌生人{output['speaker']}",
+                    "start": output["start"],
+                    "end": output["end"],
                 }
                 results.append(result)
             outputs = results
         return outputs
-

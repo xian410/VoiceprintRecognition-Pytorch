@@ -5,7 +5,7 @@ resampy>=0.2.2
 soundfile>=0.12.1
 soundcard>=0.4.2
 pyyaml>=5.4.1
-scikit-learn>=1.5.2
+scikit-learn
 pydub>=0.25.1
 torchinfo>=1.7.2
 loguru>=0.7.2
